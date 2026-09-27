@@ -159,29 +159,35 @@ def command_assistant(request):
     # SPOTIFY
     # ==================================================
 
-    if "spotify" in lower_command and (
-        "play " in lower_command
-        or "search " in lower_command
-    ):
+    if "spotify" in lower_command:
 
-        song = re.sub(
-            r"\b(play|search|on|in|spotify|for)\b",
+        query = command
+
+        query = re.sub(
+            r"\b(go to|open|spotify|and|play|search|on|in|for)\b",
             " ",
-            command,
+            query,
             flags=re.IGNORECASE,
         )
 
-        song = " ".join(song.split())
+        query = " ".join(query.split())
 
-        url = (
-            "https://open.spotify.com/search/"
-            + quote_plus(song)
-        )
+        if not query:
+            url = "https://open.spotify.com"
+            speech = "Opening Spotify."
+
+        else:
+            url = (
+                "https://open.spotify.com/search/"
+                + quote_plus(query)
+            )
+
+            speech = f"Searching Spotify for {query}."
 
         return assistant_response(
             command=command,
             intent="spotify",
-            speech=f"Searching Spotify for {song}.",
+            speech=speech,
             action="open_url",
             url=url,
         )
@@ -193,24 +199,35 @@ def command_assistant(request):
 
     if "youtube" in lower_command:
 
+        query = command
+
+        # Remove common command words/phrases
         query = re.sub(
-            r"\b(play|search|youtube|on|in|for)\b",
+            r"\b(go to|open|youtube|and|play|search|on|in|for)\b",
             " ",
-            command,
+            query,
             flags=re.IGNORECASE,
         )
 
         query = " ".join(query.split())
 
-        url = (
-            "https://www.youtube.com/results"
-            f"?search_query={quote_plus(query)}"
-        )
+        # If user only says "open YouTube"
+        if not query:
+            url = "https://www.youtube.com"
+            speech = "Opening YouTube."
+
+        else:
+            url = (
+                "https://www.youtube.com/results"
+                f"?search_query={quote_plus(query)}"
+            )
+
+            speech = f"Searching YouTube for {query}."
 
         return assistant_response(
             command=command,
             intent="youtube",
-            speech=f"Searching YouTube for {query}.",
+            speech=speech,
             action="open_url",
             url=url,
         )
@@ -451,6 +468,26 @@ def reminders(request):
     ]
 
     return Response(data)
+
+@api_view(["PATCH"])
+def complete_reminder(request, reminder_id):
+    try:
+        reminder = Reminder.objects.get(id=reminder_id)
+    except Reminder.DoesNotExist:
+        return Response(
+            {"error": "Reminder not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    reminder.completed = True
+    reminder.save(update_fields=["completed"])
+
+    return Response({
+        "id": reminder.id,
+        "title": reminder.title,
+        "completed": reminder.completed,
+        "message": "Reminder completed successfully.",
+    })
 
 
 # --------------------------------------------------
